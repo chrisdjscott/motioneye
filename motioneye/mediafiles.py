@@ -344,8 +344,12 @@ def list_media(camera_config, media_type, callback, prefix=None):
     
     def read_media_list():
         while parent_pipe.poll():
-            media_list.append(parent_pipe.recv())
-    
+            try:
+                media_list.append(parent_pipe.recv())
+            except EOFError:
+                logging.warning('Weird poll behaviour!')
+                break
+
     def poll_process():
         io_loop = IOLoop.instance()
         if process.is_alive():  # not finished yet
