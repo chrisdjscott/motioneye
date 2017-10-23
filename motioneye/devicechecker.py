@@ -10,6 +10,11 @@ import subprocess
 
 from tornado.ioloop import IOLoop
 
+import config
+import utils
+import remote
+import motionctl
+
 
 CHECK_DEVICES_TIMEOUT = 120
 WEBHOOK_URL = 'https://hooks.slack.com/services/xxx'
@@ -80,19 +85,17 @@ class DeviceChecker(object):
                     # state has changed
                     if enable:
                         msg = "No devices found on network -> enabling motion detection"
-
-                        # TODO: enable motion detection
-
                         self._enabled = True
 
                     else:
                         msg = "Device(s) found on network ({0}) -> disabling motion detection".format(", ".join(found_devices))
-
-                        # TODO: disable motion detection
-
                         self._enabled = False
 
                     logging.debug(msg)
+
+                    # enable/disable motion detection
+                    self.set_motion_detection()
+
                     notify_slack(msg)
 
                 else:
@@ -102,6 +105,34 @@ class DeviceChecker(object):
                 logging.error("no message to receive from device checker process")
 
             self._clear_process()
+
+    def set_motion_detection(self):
+        """Enable or disable motion detection."""
+        # loop over all cameras
+        for camera_id in config.get_camera_ids():
+            logging.debug("setting motion detection for camera {0}".format(camera_id))
+
+            # get the config for this camera
+            local_config = config.get_camera(camera_id)
+            if utils.is_local_motion_camera(local_config):
+                logging.debug("local camera...")
+                logging.debug("LOCAL CONFIG:\n%r", local_config)
+
+                local_config['@motion_detection'] = self._enabled
+                logging.debug("LOCAL CONFIG AFTER SET:\n%r", local_config)
+
+                # set config
+                logging.debug("calling config.set_camera")
+                config.set_camera(camera_id, local_config)
+
+                # restart motion
+                logging.debug("restarting motion")
+                motionctl.stop()
+                motionctl.start()
+
+            else:
+                logging.debug("Not local camera. Not implemented yet...")
+
 
 
 # instance of device checker
