@@ -172,6 +172,7 @@ handler_mapping = [
     (r'^/config/main/(?P<op>set|get)/?$', handlers.ConfigHandler),
     (r'^/config/(?P<camera_id>\d+)/(?P<op>get|set|rem|set_preview|test|authorize)/?$', handlers.ConfigHandler),
     (r'^/config/(?P<op>add|list|backup|restore)/?$', handlers.ConfigHandler),
+    (r'^/detection/(?P<status>on|off)/?$', handlers.DetectionHandler),
     (r'^/picture/(?P<camera_id>\d+)/(?P<op>current|list|frame)/?$', handlers.PictureHandler),
     (r'^/picture/(?P<camera_id>\d+)/(?P<op>download|preview|delete)/(?P<filename>.+?)/?$', handlers.PictureHandler),
     (r'^/picture/(?P<camera_id>\d+)/(?P<op>zipped|timelapse|delete_all)/(?P<group>.*?)/?$', handlers.PictureHandler),
@@ -396,16 +397,18 @@ def run():
 
     io_loop = IOLoop.instance()
 
-    dev_checker = PeriodicCallback(devicechecker.instance.device_checker_callback, 600000)
-    dev_checker.start()
-    logging.debug("device checker started")
+    if settings.ENABLE_DEVICE_CHECKER:
+        dev_checker = PeriodicCallback(devicechecker.instance.device_checker_callback, 600000 / 10 * 2)
+        dev_checker.start()
+        logging.debug("device checker started")
 
     io_loop.start()
 
     logging.info('server stopped')
 
-    dev_checker.stop()
-    logging.debug("device checker stopped")
+    if settings.ENABLE_DEVICE_CHECKER:
+        dev_checker.stop()
+        logging.debug("device checker stopped")
 
     tasks.stop()
     logging.info('tasks stopped')

@@ -92,3 +92,6 @@ add_remove_cameras true
 
 # enables HTTP basic authentication scheme (in addition to, not instead of the signature mechanism)
 http_basic_auth false
+
+# enable the device checker that enables/disables motion detection depending on specific devices
+ENABLE_DEVICE_CHECKER = false

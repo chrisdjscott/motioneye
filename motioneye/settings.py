@@ -24,7 +24,7 @@ for d in ['/run', '/var/run', '/tmp', '/var/tmp']:
     if os.path.exists(d):
         RUN_PATH = d
         break
-    
+
 else:
     RUN_PATH = PROJECT_PATH
 
@@ -33,7 +33,7 @@ for d in ['/log', '/var/log', '/tmp', '/var/tmp']:
     if os.path.exists(d):
         LOG_PATH = d
         break
-    
+
 else:
     LOG_PATH = RUN_PATH
 
@@ -83,7 +83,7 @@ MJPG_CLIENT_TIMEOUT = 10
 # (set to 0 to disable)
 MJPG_CLIENT_IDLE_TIMEOUT = 10
 
-# enable SMB shares (requires motionEye to run as root) 
+# enable SMB shares (requires motionEye to run as root)
 SMB_SHARES = False
 
 # the directory where the SMB mount points will be created
@@ -131,3 +131,6 @@ PASSWORD_HOOK = None
 
 # enables HTTP basic authentication scheme (in addition to, not instead of the signature mechanism)
 HTTP_BASIC_AUTH = False
+
+# enable the device checker that enables/disables motion detection depending on specific devices
+ENABLE_DEVICE_CHECKER = False

@@ -16,11 +16,13 @@ import remote
 import motionctl
 
 
+# TODO: move all these to the config file??
 CHECK_DEVICES_TIMEOUT = 120
 WEBHOOK_URL = 'https://hooks.slack.com/services/xxx'
 KNOWN_MACS = {
     'c0:ee:fb:fb:cb:b4': "DJ's Phone",
-    '04:f7:e4:84:91:f2': "PD's Phone",
+    '04:f7:e4:84:91:f2': "PD's Old Phone",
+    '6c:4d:73:65:fe:93': "PD's Phone",
 }
 
 
@@ -132,6 +134,9 @@ class DeviceChecker(object):
 
             else:
                 logging.debug("Not local camera. Not implemented yet...")
+
+                status = "on" if self._enabled else "off"
+                remote.set_motion_detection(local_config, status)
 
 
 
