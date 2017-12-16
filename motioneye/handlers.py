@@ -264,7 +264,7 @@ class DetectionHandler(BaseHandler):
     @asynchronous
     def get(self, status=None):
         if status in ("on", "off"):
-            logging.debug("Setting motion detection for all to: %s" % status)
+            logging.info("Setting motion detection for all to: %s" % status)
             enabled = True if status == "on" else False
             self.set_motion_detection(enabled)
 
@@ -274,8 +274,29 @@ class DetectionHandler(BaseHandler):
     @BaseHandler.auth(admin=True)
     def set_motion_detection(self, enabled):
         # NOTE: this is only expected to be called on remote, for local we do it in devicechecker...
-        logging.warning("Need to implement motion disabling...")
 
+        for camera_id in config.get_camera_ids():
+            logging.debug("setting motion detection for camera {0}".format(camera_id))
+
+            # get the config for this camera
+            local_config = config.get_camera(camera_id)
+            if utils.is_local_motion_camera(local_config):
+                logging.debug("local camera...")
+                logging.debug("LOCAL CONFIG:\n%r", local_config)
+
+                local_config['@motion_detection'] = enabled
+                logging.debug("LOCAL CONFIG AFTER SET:\n%r", local_config)
+
+                # set config
+                logging.debug("calling config.set_camera")
+                config.set_camera(camera_id, local_config)
+
+                # restart motion
+                logging.debug("restarting motion")
+                motionctl.stop()
+                motionctl.start()
+
+        self.finish()
 
 
 class ConfigHandler(BaseHandler):

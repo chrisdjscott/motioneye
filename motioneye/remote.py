@@ -141,6 +141,11 @@ def set_motion_detection(local_config, status):
                 'url': pretty_camera_url(local_config, camera=False),
                 'msg': utils.pretty_http_error(response)})
 
+        else:
+            # assume success
+            logging.debug("Setting motion detection succeeded for %(url)s" % {
+                          'url': pretty_camera_url(local_config, camera=False)}
+
     http_client = AsyncHTTPClient()
     http_client.fetch(request, _callback_wrapper(on_response))
 

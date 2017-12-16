@@ -94,4 +94,4 @@ add_remove_cameras true
 http_basic_auth false
 
 # enable the device checker that enables/disables motion detection depending on specific devices
-ENABLE_DEVICE_CHECKER = false
+ENABLE_DEVICE_CHECKER false

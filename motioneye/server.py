@@ -398,7 +398,7 @@ def run():
     io_loop = IOLoop.instance()
 
     if settings.ENABLE_DEVICE_CHECKER:
-        dev_checker = PeriodicCallback(devicechecker.instance.device_checker_callback, 600000 / 10 * 2)
+        dev_checker = PeriodicCallback(devicechecker.instance.device_checker_callback, 600000)
         dev_checker.start()
         logging.debug("device checker started")
 
