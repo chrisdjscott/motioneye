@@ -134,3 +134,12 @@ HTTP_BASIC_AUTH = False
 
 # enable the device checker that enables/disables motion detection depending on specific devices
 ENABLE_DEVICE_CHECKER = False
+
+# slack webhook for notifications
+SLACK_WEBHOOK = None
+
+# slack username to post as
+SLACK_USERNAME = None
+
+# slack channel to post to
+SLACK_CHANNEL = None

@@ -4,7 +4,6 @@ import logging
 import datetime
 import signal
 import multiprocessing
-import requests
 import re
 import subprocess
 
@@ -14,11 +13,11 @@ import config
 import utils
 import remote
 import motionctl
+import slack
 
 
 # TODO: move all these to the config file??
 CHECK_DEVICES_TIMEOUT = 120
-WEBHOOK_URL = 'https://hooks.slack.com/services/xxx'
 KNOWN_MACS = {
     'c0:ee:fb:fb:cb:b4': "DJ's Phone",
     '04:f7:e4:84:91:f2': "PD's Old Phone",
@@ -98,7 +97,7 @@ class DeviceChecker(object):
                     # enable/disable motion detection
                     self.set_motion_detection()
 
-                    notify_slack(msg)
+                    slack.post(msg)
 
                 else:
                     logging.debug("no change in device checker")
@@ -157,10 +156,3 @@ def do_device_check(pipe):
     pipe.send(found_devices)
 
     pipe.close()
-
-
-def notify_slack(message):
-    slack_data = {'text': message}
-    response = requests.post(WEBHOOK_URL, json=slack_data)
-    if response.status_code != 200:
-        logging.error("Request to slack returned an error %s, the response is:\n%s", response.status_code, response.text)
