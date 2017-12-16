@@ -135,6 +135,12 @@ HTTP_BASIC_AUTH = False
 # enable the device checker that enables/disables motion detection depending on specific devices
 ENABLE_DEVICE_CHECKER = False
 
+# how long to wait for a response when checking for devices
+DEVICE_CHECKER_TIMEOUT = 120
+
+# MAC addresses for devices that will disable motion detection
+DEVICE_CHECKER_MACS = None
+
 # slack webhook for notifications
 SLACK_WEBHOOK = None
 

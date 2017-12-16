@@ -14,15 +14,7 @@ import utils
 import remote
 import motionctl
 import slack
-
-
-# TODO: move all these to the config file??
-CHECK_DEVICES_TIMEOUT = 120
-KNOWN_MACS = {
-    'c0:ee:fb:fb:cb:b4': "DJ's Phone",
-    '04:f7:e4:84:91:f2': "PD's Old Phone",
-    '6c:4d:73:65:fe:93': "PD's Phone",
-}
+import settings
 
 
 class DeviceChecker(object):
@@ -62,7 +54,7 @@ class DeviceChecker(object):
         if self._process.is_alive():  # not finished yet
             now = datetime.datetime.now()
             delta = now - self._started
-            if delta.seconds < CHECK_DEVICES_TIMEOUT:
+            if delta.seconds < settings.DEVICE_CHECKER_TIMEOUT:
                 io_loop.add_timeout(datetime.timedelta(seconds=5), self.poll_process)
 
             else:  # process did not finish in time
@@ -132,8 +124,6 @@ class DeviceChecker(object):
                 motionctl.start()
 
             else:
-                logging.debug("Not local camera. Not implemented yet...")
-
                 status = "on" if self._enabled else "off"
                 remote.set_motion_detection(local_config, status)
 
@@ -146,12 +136,14 @@ instance = DeviceChecker()
 # create a subprocess to check for devices
 def do_device_check(pipe):
     command = ["arp-scan", "-I", "enp0s31f6", "-l", "-r", "10"]
-    output = subprocess.check_output(command, universal_newlines=True)
+    output = subprocess.check_output(command, universal_newlines=True).lower()
+
+    macs_list = [mac.lower() for mac in settings.DEVICE_CHECKER_MACS.split(",")]
 
     found_devices = []
-    for mac in KNOWN_MACS.keys():
+    for mac in macs_list:
         if mac in output:
-            found_devices.append(KNOWN_MACS[mac])
+            found_devices.append(mac)
 
     pipe.send(found_devices)
 
