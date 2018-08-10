@@ -2,6 +2,7 @@
 import logging
 import os.path
 import sys
+import socket
 
 import motioneye
 
@@ -149,3 +150,6 @@ SLACK_USERNAME = None
 
 # slack channel to post to
 SLACK_CHANNEL = None
+
+# provides the possibility to override the hostname
+SERVER_NAME = socket.gethostname()

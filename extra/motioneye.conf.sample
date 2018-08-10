@@ -95,3 +95,6 @@ http_basic_auth false
 
 # enable the device checker that enables/disables motion detection depending on specific devices
 ENABLE_DEVICE_CHECKER false
+
+# overrides the hostname (useful if motionEye runs behind a reverse proxy)
+# server_name motionEye

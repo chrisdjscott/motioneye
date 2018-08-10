@@ -4,8 +4,8 @@ var PASSWORD_COOKIE = 'meye_password_hash';
 
 var pushConfigs = {};
 var pushConfigReboot = false;
-var adminPasswordChanged = false;
-var normalPasswordChanged = false;
+var adminPasswordChanged = {};
+var normalPasswordChanged = {};
 var refreshDisabled = {}; /* dictionary indexed by cameraId, tells if refresh is disabled for a given camera */
 var fullScreenCameraId = null;
 var inProgress = false;
@@ -15,7 +15,7 @@ var resolutionFactor = 1;
 var username = '';
 var passwordHash = '';
 var basePath = null;
-var signatureRegExp = new RegExp('[^a-zA-Z0-9/?_.=&{}\\[\\]":, _-]', 'g');
+var signatureRegExp = new RegExp('[^a-zA-Z0-9/?_.=&{}\\[\\]":, -]', 'g');
 var initialConfigFetched = false; /* used to workaround browser extensions that trigger stupid change events */
 var pageContainer = null;
 var overlayVisible = false;
@@ -662,11 +662,17 @@ function initUI() {
     }
 
     /* update password changed flags */
+    $('#adminPasswordEntry').keydown(function () {
+        adminPasswordChanged.keydown = true;
+    });
     $('#adminPasswordEntry').change(function () {
-        adminPasswordChanged = true;
+        adminPasswordChanged.change = true;
+    });
+    $('#normalPasswordEntry').keydown(function () {
+        normalPasswordChanged.keydown = true;
     });
     $('#normalPasswordEntry').change(function () {
-        normalPasswordChanged = true;
+        normalPasswordChanged.change = true;
     });
 
     /* ui elements that enable/disable other ui elements */
@@ -999,24 +1005,23 @@ function updateLayout() {
         /* make sure the height of each camera
          * is smaller than the height of the screen
          * divided by the number of layout rows */
-        
-        /* find the tallest frame */
+
+        /* find the max height/width ratio */
         var frames = getCameraFrames();
-        var maxHeight = -1;
-        var maxHeightFrame = null;
+        var maxRatio = 0;
+
         frames.each(function () {
-            var frame = $(this);
-            var height = frame.height();
-            if (height > maxHeight) {
-                maxHeight = height;
-                maxHeightFrame = frame;
+            var img = $(this).find('img.camera');
+            var ratio = img.height() / img.width();
+            if (ratio > maxRatio) {
+                maxRatio = ratio;
             }
         });
-        
-        if (!maxHeightFrame) {
+
+        if (!maxRatio) {
             return; /* no camera frames */
         }
-        
+
         var pageContainer = getPageContainer();
         var windowWidth = $(window).width();
         
@@ -1025,16 +1030,15 @@ function updateLayout() {
             columns = 1; /* always 1 column when in full screen or mobile */
         }
         
-        var heightOffset = 10; /* some padding */
+        var heightOffset = 5; /* some padding */
         if (!isFullScreen()) {
             heightOffset += 50; /* top bar */
         }
     
         var windowHeight = $(window).height() - heightOffset;
-        var ratio = maxHeightFrame.width() / maxHeightFrame.height() / layoutRows;
-        var width = parseInt(ratio * windowHeight * columns);
         var maxWidth = windowWidth;
-        
+
+        var width = windowHeight / maxRatio * columns;
         if (pageContainer.hasClass('stretched') && windowWidth > 1200) {
             maxWidth *= 0.6; /* opened settings panel occupies 40% of the window width */ 
         }
@@ -1047,7 +1051,7 @@ function updateLayout() {
             getPageContainer().css('width', '');
             return; /* page container width already at its maximum */
         }
-        
+
         getPageContainer().css('width', width);
     }
     else {
@@ -1674,13 +1678,13 @@ function mainUi2Dict() {
     var dict = {
         'show_advanced': $('#showAdvancedSwitch')[0].checked,
         'admin_username': $('#adminUsernameEntry').val(),
-        'normal_username': $('#normalUsernameEntry').val(),
+        'normal_username': $('#normalUsernameEntry').val()
     };
 
-    if (adminPasswordChanged) {
+    if (adminPasswordChanged.change && adminPasswordChanged.keydown && $('#adminPasswordEntry').val() !== '*****') {
         dict['admin_password'] = $('#adminPasswordEntry').val();
     }
-    if (normalPasswordChanged) {
+    if (normalPasswordChanged.change && normalPasswordChanged.keydown && $('#normalPasswordEntry').val() !== '*****') {
         dict['normal_password'] = $('#normalPasswordEntry').val();
     }
 
@@ -1836,6 +1840,7 @@ function cameraUi2Dict() {
         'storage_device': $('#storageDeviceSelect').val(),
         'network_server': $('#networkServerEntry').val(),
         'network_share_name': $('#networkShareNameEntry').val(),
+        'network_smb_ver': $('#networkSMBVerSelect').val(),
         'network_username': $('#networkUsernameEntry').val(),
         'network_password': $('#networkPasswordEntry').val(),
         'root_directory': $('#rootDirectoryEntry').val(),
@@ -2144,6 +2149,7 @@ function dict2CameraUi(dict) {
     markHideIfNull('storage_device', 'storageDeviceSelect');
     $('#networkServerEntry').val(dict['network_server']); markHideIfNull('network_server', 'networkServerEntry');
     $('#networkShareNameEntry').val(dict['network_share_name']); markHideIfNull('network_share_name', 'networkShareNameEntry');
+    $('#networkSMBVerSelect').val(dict['network_smb_ver']); markHideIfNull('network_smb_ver', 'networkSMBVerSelect');
     $('#networkUsernameEntry').val(dict['network_username']); markHideIfNull('network_username', 'networkUsernameEntry');
     $('#networkPasswordEntry').val(dict['network_password']); markHideIfNull('network_password', 'networkPasswordEntry');
     $('#rootDirectoryEntry').val(dict['root_directory']); markHideIfNull('root_directory', 'rootDirectoryEntry');
@@ -2535,8 +2541,8 @@ function doApply() {
             }
 
             /* reset password change flags */
-            adminPasswordChanged = false;
-            normalPasswordChanged = false;
+            adminPasswordChanged = {};
+            normalPasswordChanged = {};
             
             if (data.reboot) {
                 var count = 0;
@@ -2945,6 +2951,7 @@ function doTestNetworkShare() {
         what: 'network_share',
         server: $('#networkServerEntry').val(),
         share: $('#networkShareNameEntry').val(),
+        smb_ver: $('#networkSMBVerSelect').val(),
         username: $('#networkUsernameEntry').val(),
         password: $('#networkPasswordEntry').val(),
         root_directory: $('#rootDirectoryEntry').val()
@@ -3453,15 +3460,45 @@ function runPictureDialog(entries, pos, mediaType) {
     
     var img = $('<img class="picture-dialog-content">');
     content.append(img);
-    
+
+    var video_container = $('<video class="picture-dialog-content" controls="true">');
+    var video_loader = $('<img>');
+    video_container.on('error', function(err) {
+        var msg = '';
+
+        /* Reference: https://html.spec.whatwg.org/multipage/embedded-content.html#error-codes */
+        switch (err.target.error.code) {
+            case err.target.error.MEDIA_ERR_ABORTED:
+                msg = 'You aborted the video playback.';
+                break;
+            case err.target.error.MEDIA_ERR_NETWORK:
+                msg = 'A network error occurred.';
+                break;
+            case err.target.error.MEDIA_ERR_DECODE:
+                msg = 'Media decode error or unsupported media features.';
+                break;
+            case err.target.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                msg = 'Media format unsupported or otherwise unavilable/unsuitable for playing.';
+                break;
+            default:
+                msg = 'Unknown error occurred.'
+        }
+
+        showErrorMessage('Error: ' + msg);
+    });
+    video_container.hide();
+    content.append(video_container);
+
     var prevArrow = $('<div class="picture-dialog-prev-arrow button mouse-effect" title="previous picture"></div>');
     content.append(prevArrow);
-    
+
+    var playButton = $('<div class="picture-dialog-play button mouse-effect" title="play"></div>');
+    content.append(playButton);
+
     var nextArrow = $('<div class="picture-dialog-next-arrow button mouse-effect" title="next picture"></div>');
     content.append(nextArrow);
-    
-    var progressImg = $('<img class="picture-dialog-progress" src="' + staticPath + 'img/modal-progress.gif">');
-    
+    var progressImg = $('<div class="picture-dialog-progress">');
+
     function updatePicture() {
         var entry = entries[pos];
 
@@ -3471,33 +3508,59 @@ function runPictureDialog(entries, pos, mediaType) {
         var heightCoef = 0.75;
         
         var width = parseInt(windowWidth * widthCoef);
-        var height = parseInt(windowHeight * heightCoef);        
+        var height = parseInt(windowHeight * heightCoef);
         
         prevArrow.css('display', 'none');
         nextArrow.css('display', 'none');
+
+        var playable = video_container.get(0).canPlayType(entry.mimeType) != ''
+        playButton.hide();
+        video_container.hide();
+        img.show();
+
         img.parent().append(progressImg);
         updateModalDialogPosition();
-        progressImg.css('left', (img.parent().width() - progressImg.width()) / 2);
-        progressImg.css('top', (img.parent().height() - progressImg.height()) / 2);
         
         img.attr('src', addAuthParams('GET', basePath + mediaType + '/' + entry.cameraId + '/preview' + entry.path));
+
+        if (playable) {
+            video_loader.attr('src', addAuthParams('GET', basePath + mediaType + '/' + entry.cameraId + '/playback' + entry.path));
+            playButton.on('click', function() {
+                video_container.attr('src', addAuthParams('GET', basePath + mediaType + '/' + entry.cameraId + '/playback' + entry.path));
+                video_container.show();
+                video_container.get(0).load();  /* Must call load() after changing <video> source */
+                img.hide();
+                playButton.hide();
+                video_container.on('canplay', function() {
+                   video_container.get(0).play();  /* Automatically play the video once the browser is ready */
+                });
+            });
+
+            playButton.show();
+        }
+
         img.load(function () {
             var aspectRatio = this.naturalWidth / this.naturalHeight;
             var sizeWidth = width * width / aspectRatio;
             var sizeHeight = height * aspectRatio * height;
-            
+
+            img.width('').height('');
+            video_container.width('').height('');
+
             if (sizeWidth < sizeHeight) {
                 img.width(width);
+                video_container.width(width).height(parseInt(width/aspectRatio));
             }
             else {
                 img.height(height);
+                video_container.width(parseInt(height*aspectRatio)).height(height);
             }
             updateModalDialogPosition();
             prevArrow.css('display', pos < entries.length - 1 ? '' : 'none');
             nextArrow.css('display', pos > 0 ? '' : 'none');
             progressImg.remove();
         });
-        
+
         $('div.modal-container').find('span.modal-title:last').html(entry.name);
         updateModalDialogPosition();
     }
@@ -4172,6 +4235,7 @@ function runMediaDialog(cameraId, mediaType) {
                 entries.forEach(function (entry) {
                     var media = mediaListByName[entry.name];
                     if (media) {
+                        entry.mimeType = media.mimeType;
                         entry.momentStr = media.momentStr;
                         entry.momentStrShort = media.momentStrShort;
                         entry.sizeStr = media.sizeStr;
@@ -4401,7 +4465,7 @@ function runMediaDialog(cameraId, mediaType) {
 
 function addCameraFrameUi(cameraConfig) {
     var cameraId = cameraConfig.id;
-    
+
     var cameraFrameDiv = $(
             '<div class="camera-frame">' +
                 '<div class="camera-container">' +
@@ -4673,13 +4737,13 @@ function addCameraFrameUi(cameraConfig) {
         if (this.naturalHeight) {
             this._naturalHeight = this.naturalHeight;
         }
-        
+
         if (this.initializing) {
             cameraProgress.removeClass('visible');
             cameraImg.removeClass('initializing');
             cameraImg.css('height', '');
             this.initializing = false;
-            
+
             updateLayout();
         }
 
@@ -4931,6 +4995,11 @@ function isFullScreen() {
 
 function refreshCameraFrames() {
     var timestamp = new Date().getTime();
+
+    if ($('div.modal-container').is(':visible')) {
+        /* pause camera refresh if hidden by a dialog */
+        return setTimeout(refreshCameraFrames, 1000);
+    }
 
     function refreshCameraFrame(cameraId, img, serverSideResize) {
         if (refreshDisabled[cameraId]) {
